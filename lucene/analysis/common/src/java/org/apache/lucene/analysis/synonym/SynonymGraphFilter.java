@@ -36,6 +36,7 @@ import org.apache.lucene.util.CharsRefBuilder;
 import org.apache.lucene.util.RollingBuffer;
 import org.apache.lucene.util.fst.FST;
 
+
 // TODO: maybe we should resolve token -> wordID then run
 // FST on wordIDs, for better perf?
 
@@ -243,7 +244,7 @@ public final class SynonymGraphFilter extends TokenFilter {
     }
 
     lastNodeOut += posIncrAtt.getPositionIncrement();
-    nextNodeOut = lastNodeOut + posLenAtt.getPositionLength();
+    nextNodeOut += posIncrAtt.getPositionIncrement();
 
     // System.out.println("  syn: ret lookahead=" + this);
 
@@ -279,6 +280,7 @@ public final class SynonymGraphFilter extends TokenFilter {
 
     posIncrAtt.setPositionIncrement(token.startNode - lastNodeOut);
     lastNodeOut = token.startNode;
+    nextNodeOut = token.endNode;
     posLenAtt.setPositionLength(token.endNode - token.startNode);
   }
 
@@ -338,6 +340,9 @@ public final class SynonymGraphFilter extends TokenFilter {
           break;
         } else if (input.incrementToken()) {
           // System.out.println("    input.incrToken");
+          if (lookaheadNextRead == lookaheadNextWrite) {
+            nextNodeOut = lastNodeOut + posIncrAtt.getPositionIncrement();
+          }
           liveToken = true;
           buffer = termAtt.buffer();
           bufferLen = termAtt.length();
@@ -530,8 +535,6 @@ public final class SynonymGraphFilter extends TokenFilter {
           new BufferedOutputToken(token.state, token.term.toString(), startNode, inputEndNode));
     }
 
-    nextNodeOut = endNode;
-
     // Do full side-path for each syn output:
     for (int pathID = 0; pathID < paths.size(); pathID++) {
       List<String> path = paths.get(pathID);
@@ -593,7 +596,7 @@ public final class SynonymGraphFilter extends TokenFilter {
     lookaheadNextWrite = 0;
     lookaheadNextRead = 0;
     captureCount = 0;
-    lastNodeOut = -1;
+    lastNodeOut = 0;
     nextNodeOut = 0;
     matchStartOffset = -1;
     matchEndOffset = -1;
